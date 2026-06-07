@@ -1,0 +1,59 @@
+import board
+import busio
+from kmk.kmk_keyboard import KMKKeyboard
+from kmk.keys import KC
+from kmk.scanners import DiodeOrientation
+
+# Import specific modules for your hardware
+from kmk.modules.encoder import EncoderHandler
+from kmk.extensions.RGB import RGB
+from kmk.extensions.display import Display, TextEntry, ImageEntry
+from kmk.extensions.display.ssd1306 import SSD1306
+
+keyboard = KMKKeyboard()
+
+# 1. THE MATRIX (Wired exactly to your schematic pins)
+keyboard.row_pins = (board.D0, board.D1, board.D2)
+keyboard.col_pins = (board.D3, board.D6, board.D7)
+# Since electricity flows from Columns -> Switches -> Diodes -> Rows
+keyboard.diode_orientation = DiodeOrientation.COL2ROW 
+
+# 2. THE ROTARY ENCODER (The Knob)
+encoder_handler = EncoderHandler()
+keyboard.modules.append(encoder_handler)
+# Wired to D9 (A) and D10 (B). 
+# If the knob spins backward, swap D9 and D10 in this line!
+encoder_handler.pins = ((board.D9, board.D10, None, False),) 
+# Mapping spin to Volume Up and Volume Down
+encoder_handler.map = [ ((KC.VOLU, KC.VOLD),) ]
+
+# 3. THE RGB UNDERGLOW
+# SK6812 LEDs connected to D8
+rgb = RGB(pixel_pin=board.D8, num_pixels=16, val_limit=100, hue_default=200, sat_default=255, val_default=100)
+keyboard.extensions.append(rgb)
+
+# 4. THE OLED SCREEN
+i2c = busio.I2C(board.D5, board.D4) # SCL on D5, SDA on D4
+display = Display(
+    display=SSD1306(i2c=i2c, device_address=0x3C, width=128, height=32),
+    entries=[
+        TextEntry(text='ADVAIT', x=0, y=0),
+        TextEntry(text='MACROPAD V1', x=0, y=10)
+    ]
+)
+keyboard.extensions.append(display)
+
+# 5. THE KEYMAP 
+# A custom 3x3 layout for Media, Gaming, and Macros
+keyboard.keymap = [
+    [  # ROW 1 (Top)
+        KC.PREV,    KC.PLAY_PAUSE,  KC.MUTE,   # Key 1, Key 4, Knob Click
+       # ROW 2 (Middle)
+        KC.Q,       KC.W,           KC.E,      # Key 2, Key 5, Key 7
+       # ROW 3 (Bottom)
+        KC.A,       KC.S,           KC.D,      # Key 3, Key 6, Key 8
+    ]
+]
+
+if __name__ == '__main__':
+    keyboard.go()
