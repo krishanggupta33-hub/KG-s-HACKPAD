@@ -1,10 +1,9 @@
-# KG's HACKPAD 🎛️
+# KG's HACKPAD 
 
 A 3x3 mechanical macropad I built from scratch for the [Hack Club Stardance Challenge](https://hackclub.com/stardance/). Designed the PCB myself in KiCad, wrote the firmware in Python using KMK, and yes — soldered every single joint by hand. It's been a journey.
 
 The idea was simple: I wanted something small that could sit next to my keyboard and handle media controls, a few gaming macros, and app shortcuts without me having to reach across my desk. One weekend of schematic doodling later, this happened.
 
----
 
 ## What's on it
 
