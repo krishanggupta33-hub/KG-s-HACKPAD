@@ -1,75 +1,135 @@
-# KG's Hackpad 
-### Stardance Hardware Submission — Krishang Gupta
+# KG's HACKPAD 
+### A custom 3x3 mechanical macropad built from scratch for the [Hack Club Stardance Challenge]
 
 ---
 
-## okay so what is this
+## what is this
 
-it's a macropad. a 3x3 grid of mechanical switches with a rotary encoder knob and a tiny OLED screen, all running on a custom PCB I designed myself. I built it because I was tired of reaching across my keyboard every time I wanted to change the volume or switch apps.
+a compact macropad i built because i was tired of reaching across my keyboard every time i wanted to change the volume or switch apps. 9 mechanical switches, a rotary encoder knob, and a tiny OLED screen all running on a custom PCB i designed myself in KiCad.
 
-I designed the schematic, laid out the PCB, routed all the traces by hand, and designed the case too. first time doing basically all of this so it was a lot of figuring things out as I went.
+i did the schematic, PCB layout, trace routing, case design, and firmware all from scratch. first time doing any of this so it was a lot of trial and error.
 
 ---
 
-## what's inside
+## what's on it
 
 - **Seeed Studio XIAO RP2040** — the brain
-- **9x mechanical switches** in a 3x3 grid
-- **EC11 rotary encoder** — turn for volume, click for mute
-- **0.91" OLED display** (SSD1306) — shows the active mode
-- **9x 1N4148 diodes** — one per switch to stop ghosting
-- **custom 2-layer PCB** designed in KiCad
+- **9x mechanical switches** in a 3x3 grid (19.05mm spacing)
+- **EC11 rotary encoder** — turn for volume, click to switch layers
+- **0.91" SSD1306 OLED** (128x32) — shows active layer
+- **9x 1N4148 diodes** — one per switch, prevents ghosting
+- **custom 2-layer PCB** routed in KiCad
 - **3D printed case** designed in Fusion 360
 
 ---
 
-## the PCB
+## pin mapping
 
-this was probably the hardest part. I'd never designed a PCB before so there was a lot of going back and re-reading stuff.
+verified from the final schematic — use this, not the old table:
 
-the main challenge was fitting everything onto the XIAO RP2040 without running out of pins. I used a row-column matrix so instead of needing 9 pins for 9 switches I only need 6 (3 rows + 3 columns). each switch gets a diode so pressing multiple keys at once doesn't cause weird ghost inputs.
+| component | XIAO RP2040 pin | notes |
+|:---|:---|:---|
+| Row 1 | `D0` | top row |
+| Row 2 | `D1` | middle row |
+| Row 3 | `D2` | bottom row |
+| Col 1 | `D3` | left column |
+| Col 2 | `D10` | middle column |
+| Col 3 | `D9` | right column |
+| OLED SDA | `D4` | I2C data |
+| OLED SCL | `D5` | I2C clock |
+| Encoder A | `D6` | rotation |
+| Encoder B | `D7` | rotation |
+| Encoder click | `D8` | layer switch |
 
-I routed all the traces manually didn't use the autorouter at all. two layers, ground pours on both sides, and it passes DRC with **0 unrouted nets and 0 errors** which honestly I was really happy about.
-
----
-
-## the case
-
-designed in Fusion 360. two parts:
-
-**top plate** — has cutouts for all 9 switches, a hole for the encoder knob, and a window for the OLED
-
-**bottom tray** — PCB sits inside, clearance for all the components on the underside
-
-modeled it to the exact PCB dimensions so everything actually lines up when you put it together.
-
----
-
-## what it does
-
-- **media stuff** — encoder controls volume, top row is prev/play/next
-- **app launching** — one button opens whatever app I set it to
-- **gaming** — map whatever macros I need per game
-- OLED shows which mode is active
+diodes are wired `COL2ROW`.
 
 ---
 
-## what I learned
+## firmware setup
 
-a lot honestly. before this I had never done any of this — no PCB design, no CAD, nothing. now I know how to go from a schematic to a board that you can actually send to a fab. that feels pretty cool.
+runs on [KMK](https://github.com/KMKfw/kmk_firmware) + CircuitPython. the keyboard shows up as a USB drive so you edit the keymap in a text editor — no flashing needed.
 
-the thing that surprised me most was how much of it is just problem solving. something doesn't work, you figure out why, you fix it. repeat until it works.
+### 1. flash CircuitPython
+hold `BOOT` while plugging in the XIAO. a drive called `RPI-RP2` shows up. drag the [CircuitPython UF2 for XIAO RP2040](https://circuitpython.org/board/seeeduino_xiao_rp2040/) onto it. it reboots as `CIRCUITPY`.
+
+### 2. install KMK
+download the [KMK repo](https://github.com/KMKfw/kmk_firmware), unzip it, copy the `kmk` folder to the root of `CIRCUITPY`.
+
+### 3. install CircuitPython libraries
+copy these to `CIRCUITPY/lib`:
+- `adafruit_displayio_ssd1306`
+- `adafruit_display_text`
+
+grab them from the [Adafruit CircuitPython Bundle](https://circuitpython.org/libraries).
+
+### 4. drop in the code
+copy `code.py` from this repo onto `CIRCUITPY`. the pad reboots, OLED lights up, you're done.
 
 ---
 
-## files included
+## default keymap
 
-- KiCad schematic + PCB files
-- Gerber + drill files (ready to fab)
+4 layers, cycle through them by clicking the encoder knob.
+
+**Layer 0 — WORKFLOW**
+```
+[ Ctrl+Z ]  [ Ctrl+Y ]  [ Ctrl+S ]
+[ Ctrl+X ]  [ Ctrl+C ]  [ Ctrl+V ]
+[ Ctrl+F ]  [ Enter  ]  [  ESC   ]
+encoder turn: undo / redo
+```
+
+**Layer 1 — MEDIA**
+```
+[  Prev  ]  [  Play  ]  [  Next  ]
+[ Vol Dn ]  [  Mute  ]  [ Vol Up ]
+[ SelLft ]  [ WrdLft ]  [ SelRgt ]
+encoder turn: prev / next track
+```
+
+**Layer 2 — GAMING**
+```
+[  Q  ]  [  W  ]  [  E  ]
+[  A  ]  [  S  ]  [  D  ]
+[ Sft ]  [ Spc ]  [ Ctl ]
+encoder turn: volume
+```
+
+**Layer 3 — LAUNCHER**
+```
+[ Win+1 ]  [ Win+2 ]  [ Win+3 ]
+[ Win+4 ]  [ Win+5 ]  [ Win+6 ]
+[ Win+7 ]  [ Win+8 ]  [ Win+9 ]
+encoder turn: volume
+```
+*(pin apps to your Windows taskbar in order to use the launcher layer)*
+
+---
+
+## PCB
+
+designed entirely in KiCad. two layers, manually routed — didn't use the autorouter. ground pours on both sides. passes DRC with **0 unrouted nets and 0 errors**.
+
+---
+
+## case
+
+two-part design in Fusion 360:
+- **top plate** — switch cutouts, encoder hole, OLED window
+- **bottom tray** — PCB sits inside, clearance for components
+
+modeled to exact PCB dimensions so everything lines up when assembled.
+
+---
+
+## project files
+
+- KiCad schematic + PCB
+- Gerber + drill files (fab-ready)
 - BOM
-- Fusion 360 case files
-- STLs for printing
+- Fusion 360 case source files + STLs
+- `code.py` firmware
 
 ---
 
-*built by Krishang Gupta for the Hack Club Stardance Hardware Mission. AI was used for occasional help and debugging — all the actual design work was done by me.*
+*built by **Krishang Gupta** for Hack Club Stardance. schematic, PCB, case, and firmware done independently. AI used for occasional reference and debugging.*
