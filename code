@@ -1,59 +1,85 @@
 import board
 import busio
+import displayio
+import terminalio
+import adafruit_displayio_ssd1306
+from adafruit_display_text import label
 from kmk.kmk_keyboard import KMKKeyboard
 from kmk.keys import KC
-from kmk.scanners import DiodeOrientation
-
-# Import specific modules for your hardware
+from kmk.modules.layers import Layers
 from kmk.modules.encoder import EncoderHandler
-from kmk.extensions.RGB import RGB
-from kmk.extensions.display import Display, TextEntry, ImageEntry
-from kmk.extensions.display.ssd1306 import SSD1306
+from kmk.modules.matrix import DiodeOrientation
 
 keyboard = KMKKeyboard()
 
-# 1. THE MATRIX (Wired exactly to your schematic pins)
+keyboard.col_pins = (board.D3, board.D10, board.D9)
 keyboard.row_pins = (board.D0, board.D1, board.D2)
-keyboard.col_pins = (board.D3, board.D6, board.D7)
-# Since electricity flows from Columns -> Switches -> Diodes -> Rows
-keyboard.diode_orientation = DiodeOrientation.COL2ROW 
+keyboard.diode_orientation = DiodeOrientation.COL2ROW
 
-# 2. THE ROTARY ENCODER (The Knob)
-encoder_handler = EncoderHandler()
-keyboard.modules.append(encoder_handler)
-# Wired to D9 (A) and D10 (B). 
-# If the knob spins backward, swap D9 and D10 in this line!
-encoder_handler.pins = ((board.D9, board.D10, None, False),) 
-# Mapping spin to Volume Up and Volume Down
-encoder_handler.map = [ ((KC.VOLU, KC.VOLD),) ]
+layers = Layers()
+keyboard.modules.append(layers)
 
-# 3. THE RGB UNDERGLOW
-# SK6812 LEDs connected to D8
-rgb = RGB(pixel_pin=board.D8, num_pixels=16, val_limit=100, hue_default=200, sat_default=255, val_default=100)
-keyboard.extensions.append(rgb)
+encoder = EncoderHandler()
+encoder.pins = ((board.D6, board.D7, board.D8, False),)
+keyboard.modules.append(encoder)
 
-# 4. THE OLED SCREEN
-i2c = busio.I2C(board.D5, board.D4) # SCL on D5, SDA on D4
-display = Display(
-    display=SSD1306(i2c=i2c, device_address=0x3C, width=128, height=32),
-    entries=[
-        TextEntry(text='ADVAIT', x=0, y=0),
-        TextEntry(text='MACROPAD V1', x=0, y=10)
-    ]
-)
-keyboard.extensions.append(display)
+layer_names = ["WORKFLOW", "MEDIA", "GAMING", "LAUNCHER"]
+last_layer = -1
 
-# 5. THE KEYMAP 
-# A custom 3x3 layout for Media, Gaming, and Macros
+displayio.release_displays()
+i2c = busio.I2C(board.D5, board.D4)
+disp_bus = displayio.I2CDisplay(i2c, device_address=0x3C)
+oled = adafruit_displayio_ssd1306.SSD1306(disp_bus, width=128, height=32)
+
+def update_screen(layer_index):
+    g = displayio.Group()
+    g.append(label.Label(terminalio.FONT, text="KG's HACKPAD", color=0xFFFFFF, x=0, y=5))
+    g.append(label.Label(terminalio.FONT, text=layer_names[layer_index], color=0xFFFFFF, x=0, y=22))
+    for i in range(4):
+        dot = "\u25cf" if i == layer_index else "\u25cb"
+        g.append(label.Label(terminalio.FONT, text=dot, color=0xFFFFFF, x=88 + (i * 10), y=22))
+    oled.show(g)
+
+update_screen(0)
+
 keyboard.keymap = [
-    [  # ROW 1 (Top)
-        KC.PREV,    KC.PLAY_PAUSE,  KC.MUTE,   # Key 1, Key 4, Knob Click
-       # ROW 2 (Middle)
-        KC.Q,       KC.W,           KC.E,      # Key 2, Key 5, Key 7
-       # ROW 3 (Bottom)
-        KC.A,       KC.S,           KC.D,      # Key 3, Key 6, Key 8
-    ]
+    [
+        KC.LCTL(KC.Z), KC.LCTL(KC.Y), KC.LCTL(KC.S),
+        KC.LCTL(KC.X), KC.LCTL(KC.C), KC.LCTL(KC.V),
+        KC.LCTL(KC.F), KC.ENTER, KC.ESC,
+    ],
+    [
+        KC.MPRV, KC.MPLY, KC.MNXT,
+        KC.VOLD, KC.MUTE, KC.VOLU,
+        KC.LSFT(KC.LEFT), KC.LCTL(KC.LEFT), KC.LSFT(KC.RIGHT),
+    ],
+    [
+        KC.Q, KC.W, KC.E,
+        KC.A, KC.S, KC.D,
+        KC.LSFT, KC.SPACE, KC.LCTL,
+    ],
+    [
+        KC.LGUI(KC.N1), KC.LGUI(KC.N2), KC.LGUI(KC.N3),
+        KC.LGUI(KC.N4), KC.LGUI(KC.N5), KC.LGUI(KC.N6),
+        KC.LGUI(KC.N7), KC.LGUI(KC.N8), KC.LGUI(KC.N9),
+    ],
 ]
+
+encoder.map = [
+    [(KC.LCTL(KC.Z), KC.LCTL(KC.Y), KC.TO(1))],
+    [(KC.MPRV, KC.MNXT, KC.TO(2))],
+    [(KC.VOLD, KC.VOLU, KC.TO(3))],
+    [(KC.VOLD, KC.VOLU, KC.TO(0))],
+]
+
+def before_hid_send(keyboard):
+    global last_layer
+    current = keyboard.active_layers[0] if keyboard.active_layers else 0
+    if current != last_layer:
+        last_layer = current
+        update_screen(current)
+
+keyboard.before_hid_send_callback = before_hid_send
 
 if __name__ == '__main__':
     keyboard.go()
